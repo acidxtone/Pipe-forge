@@ -13,7 +13,11 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
-    port: 5000,
+    port: 3000,
     allowedHosts: true,
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
   },
 })

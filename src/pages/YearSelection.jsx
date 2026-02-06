@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import { useAuth } from '@/lib/AuthContext';
 
 export default function YearSelection() {
-  const { user, updateMe } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [selectedYear, setSelectedYear] = useState(user?.selected_year || null);
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ export default function YearSelection() {
 
     setSaving(true);
     try {
-      await updateMe({ selected_year: selectedYear });
+      await updateProfile({ selected_year: selectedYear });
       navigate(createPageUrl('Dashboard'));
     } catch (error) {
       console.error('Failed to save year selection:', error);
