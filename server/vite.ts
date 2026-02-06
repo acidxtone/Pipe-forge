@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
+import type { Server } from "http";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,9 +17,9 @@ const viteLogger = {
   hasWarned: false,
 };
 
-export async function setupVite(app: Express) {
+export async function setupVite(app: Express, server: Server) {
   const vite = await createViteServer({
-    server: { middlewareMode: true, hmr: { server: undefined } },
+    server: { middlewareMode: true, hmr: { server } },
     appType: "spa",
     customLogger: viteLogger,
   });
@@ -51,4 +52,3 @@ export async function serveStatic(app: Express) {
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
-

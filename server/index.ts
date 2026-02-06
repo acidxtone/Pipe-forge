@@ -1,6 +1,6 @@
 import express from "express";
+import { createServer } from "http";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
-import { setupVite } from "./vite";
 
 const app = express();
 app.use(express.json());
@@ -10,15 +10,18 @@ app.use(express.urlencoded({ extended: false }));
   await setupAuth(app);
   registerAuthRoutes(app);
 
+  const server = createServer(app);
+
   if (process.env.NODE_ENV === "production") {
     const { serveStatic } = await import("./vite");
-    serveStatic(app);
+    await serveStatic(app);
   } else {
-    await setupVite(app);
+    const { setupVite } = await import("./vite");
+    await setupVite(app, server);
   }
 
   const port = 5000;
-  app.listen(port, "0.0.0.0", () => {
+  server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on port ${port}`);
   });
 })();
