@@ -27,7 +27,7 @@ import { useNavigate } from 'react-router-dom';
 export default function Settings() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateMe } = useAuth();
   const [showChangeYear, setShowChangeYear] = useState(false);
   const [selectedNewYear, setSelectedNewYear] = useState(null);
 
@@ -85,7 +85,7 @@ export default function Settings() {
       if (progress?.id) {
         await api.entities.UserProgress.delete(progress.id);
       }
-      await api.auth.updateMe({ selected_year: newYear });
+      await updateMe({ selected_year: newYear });
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['userProgress']);

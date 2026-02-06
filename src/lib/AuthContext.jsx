@@ -165,6 +165,20 @@ export const AuthProvider = ({ children }) => {
     console.log('navigateToLogin called - component should handle navigation');
   };
 
+  const updateMe = async (data) => {
+    try {
+      const updatedUser = await api.auth.updateMe(data);
+      if (updatedUser) {
+        setUser(updatedUser);
+        return { success: true };
+      }
+      return { success: false, message: 'Failed to update profile' };
+    } catch (error) {
+      console.error('Update profile failed:', error);
+      return { success: false, message: error.message };
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -179,7 +193,8 @@ export const AuthProvider = ({ children }) => {
       checkAppState,
       signIn,
       signInWithMagicLink,
-      signUp
+      signUp,
+      updateMe
     }}>
       {children}
     </AuthContext.Provider>
