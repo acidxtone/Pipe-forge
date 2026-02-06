@@ -1,5 +1,4 @@
 import React from 'react';
-import { createPageUrl } from '@/utils';
 
 /**
  * Privacy Policy Page

@@ -1,5 +1,4 @@
 import React from 'react';
-import { createPageUrl } from '@/utils';
 
 /**
  * Terms of Service Page

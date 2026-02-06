@@ -1,8 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from '@/Apps.jsx'
+import App from '@/App.jsx'
 import '@/index.css'
-import '@/vite-env.d.ts'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <App />

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { createPageUrl } from '@/utils';
 
 /**
  * Google AdSense Component

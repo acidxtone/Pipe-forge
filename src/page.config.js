@@ -49,29 +49,24 @@
  */
 import Curriculum from './pages/Curriculum';
 import Dashboard from './pages/Dashboard';
-import Login from './pages/Login';
 import Quiz from './pages/Quiz';
 import QuizSetup from './pages/QuizSetup';
 import Settings from './pages/Settings';
 import Study from './pages/Study';
 import YearSelection from './pages/YearSelection';
-import Privacy from './pages/Privacy';
-import Terms from './pages/Terms';
+
 
 export const PAGES = {
     "Curriculum": Curriculum,
     "Dashboard": Dashboard,
-    "Login": Login,
     "Quiz": Quiz,
     "QuizSetup": QuizSetup,
     "Settings": Settings,
     "Study": Study,
     "YearSelection": YearSelection,
-    "Privacy": Privacy,
-    "Terms": Terms
 }
 
 export const pagesConfig = {
-    mainPage: "YearSelection",
+    mainPage: "Dashboard",
     Pages: PAGES,
 };

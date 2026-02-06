@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '@/api/supabaseClient';
+import { useAuth } from '@/lib/AuthContext';
+import { api } from '@/api/localClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -11,37 +12,32 @@ import {
   Search, 
   Bookmark, 
   ArrowLeft,
-  Filter,
   ChevronRight
 } from "lucide-react";
 import { motion } from "framer-motion";
 import YearIndicator from '@/components/YearIndicator';
-import YearHeader from '@/components/YearHeader';
 import { BannerAd, InContentAd } from '@/components/ads/AdSense';
 
 export default function Study() {
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSection, setSelectedSection] = useState('all');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    api.auth.me().then(user => {
-      setUser(user);
-      if (!user.selected_year) {
-        navigate(createPageUrl('YearSelection'));
-      }
-    }).catch(() => {});
-  }, [navigate]);
+    if (user && !user.selected_year) {
+      navigate(createPageUrl('YearSelection'));
+    }
+  }, [user, navigate]);
 
   const { data: progress } = useQuery({
-    queryKey: ['userProgress'],
+    queryKey: ['userProgress', user?.selected_year],
     queryFn: async () => {
-      const results = await api.entities.UserProgress.filter({ created_by: user?.email });
+      const results = await api.entities.UserProgress.filter({ created_by: user?.email, year: user?.selected_year });
       return results[0] || null;
     },
-    enabled: !!user?.email
+    enabled: !!user?.email && !!user?.selected_year
   });
 
   const { data: studyGuides = [] } = useQuery({
@@ -70,16 +66,18 @@ export default function Study() {
     mutationFn: async ({ questionId, bookmarked }) => {
       if (bookmarked) {
         await api.entities.UserProgress.update(progress.id, {
-          bookmarked_questions: [...(progress.bookmarked_questions || []), questionId]
+          bookmarked_questions: [...(progress.bookmarked_questions || []), questionId],
+          _year: user?.selected_year
         });
       } else {
         await api.entities.UserProgress.update(progress.id, {
-          bookmarked_questions: progress.bookmarked_questions?.filter(id => id !== questionId) || []
+          bookmarked_questions: progress.bookmarked_questions?.filter(id => id !== questionId) || [],
+          _year: user?.selected_year
         });
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['userProgress']);
+      queryClient.invalidateQueries(['userProgress', user?.selected_year]);
     }
   });
 
@@ -108,7 +106,6 @@ export default function Study() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-      <YearHeader />
       <BannerAd position="top" />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

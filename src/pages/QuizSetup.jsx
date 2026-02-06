@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { api } from '@/api/supabaseClient';
+import React, { useState } from 'react';
+import { useAuth } from '@/lib/AuthContext';
+import { api } from '@/api/localClient';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -79,6 +80,7 @@ const sections = [
 ];
 
 export default function QuizSetup() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const urlParams = new URLSearchParams(window.location.search);
   const mode = urlParams.get('mode') || 'quick_quiz';
@@ -89,18 +91,13 @@ export default function QuizSetup() {
   const [difficulty, setDifficulty] = useState('mixed');
   const [showExplanations, setShowExplanations] = useState(true);
 
-  const [user, setUser] = useState(null);
-  useEffect(() => {
-    api.auth.me().then(setUser).catch(() => {});
-  }, []);
-
   const { data: progress } = useQuery({
-    queryKey: ['userProgress'],
+    queryKey: ['userProgress', user?.selected_year],
     queryFn: async () => {
-      const results = await api.entities.UserProgress.filter({ created_by: user?.email });
+      const results = await api.entities.UserProgress.filter({ created_by: user?.email, year: user?.selected_year });
       return results[0] || null;
     },
-    enabled: !!user?.email
+    enabled: !!user?.email && !!user?.selected_year
   });
 
   const { data: questions = [] } = useQuery({
