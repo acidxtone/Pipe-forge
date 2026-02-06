@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from '@/Apps-test.jsx'
+import App from '@/Apps.jsx'
 import '@/index.css'
 import '@/vite-env.d.ts'
 

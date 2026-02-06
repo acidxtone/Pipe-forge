@@ -6,6 +6,7 @@ import { pagesConfig } from './page.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { supabase } from '@/api/supabaseClient';
 import React from 'react';
 
 const { Pages, Layout, mainPage } = pagesConfig;
