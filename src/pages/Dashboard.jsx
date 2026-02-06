@@ -53,23 +53,15 @@ export default function Dashboard() {
 
   const quizModes = [
     {
-      mode: 'practice',
-      title: 'Practice Mode',
-      description: 'Answer questions with immediate feedback',
-      icon: Target,
-      color: 'bg-blue-500',
-      badge: progress?.total_questions_answered || 0
+      mode: 'full_exam',
+      title: 'Full Exam Simulation',
+      description: 'Complete 100-question exam under real conditions (3 hours)',
+      icon: FileText,
+      color: 'bg-slate-600',
+      badge: '100 Q'
     },
     {
-      mode: 'timed',
-      title: 'Timed Quiz',
-      description: 'Simulate exam conditions',
-      icon: Clock,
-      color: 'bg-red-500',
-      badge: progress?.quizzes_completed || 0
-    },
-    {
-      mode: 'section_practice',
+      mode: 'section_focus',
       title: 'Section Practice',
       description: 'Practice specific sections to strengthen weak areas',
       icon: Target,
@@ -99,14 +91,6 @@ export default function Dashboard() {
       icon: AlertTriangle,
       color: 'bg-orange-500',
       badge: progress?.weak_questions?.length || 0
-    },
-    {
-      mode: 'exam_simulation',
-      title: 'Full Exam Simulation',
-      description: 'Complete 100-question exam under real conditions',
-      icon: FileText,
-      color: 'bg-slate-600',
-      badge: '100 Q'
     },
     {
       mode: 'bookmarked',

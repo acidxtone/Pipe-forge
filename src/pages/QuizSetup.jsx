@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { api } from '@/api/localClient';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,6 +81,7 @@ const sections = [
 
 export default function QuizSetup() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const urlParams = new URLSearchParams(window.location.search);
   const mode = urlParams.get('mode') || 'quick_quiz';
   
