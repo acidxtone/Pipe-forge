@@ -202,7 +202,7 @@ export default function YearSelection() {
               {saving ? 'Saving...' : 'Start Studying'}
             </Button>
           </div>
-        </motion.div>
+        </div>
 
         {/* Login Modal */}
         {showLoginModal && !isAuthenticated && (

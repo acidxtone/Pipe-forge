@@ -1,7 +1,15 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { api } from '@/api/supabaseClient';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { createPageUrl } from '@/utils';
 import { anonymousSession } from './AnonymousSession';
+
+let apiModule;
+if (isSupabaseConfigured) {
+  apiModule = await import('@/api/supabaseClient');
+} else {
+  apiModule = await import('@/api/localClient');
+}
+const { api } = apiModule;
 
 const AuthContext = createContext();
 
@@ -14,13 +22,9 @@ export const AuthProvider = ({ children }) => {
   const [appPublicSettings, setAppPublicSettings] = useState(null);
   const [anonymousSessionData, setAnonymousSessionData] = useState(null);
 
-  console.log('AuthProvider: Initializing...');
-
-  // Initialize anonymous session on mount
   useEffect(() => {
     const session = anonymousSession.init();
     setAnonymousSessionData(session);
-    console.log('Anonymous session initialized:', session.id);
   }, []);
 
   const checkAppState = async () => {
@@ -29,30 +33,25 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingAuth(true);
       setAuthError(null);
       
-      // Check if user is authenticated (optional - app works without auth)
       try {
         const currentUser = await api.auth.me();
         if (currentUser) {
           setUser(currentUser);
           setIsAuthenticated(true);
-          setAppPublicSettings({ id: 'supabase', public_settings: {} });
+          setAppPublicSettings({ id: isSupabaseConfigured ? 'supabase' : 'local', public_settings: {} });
           
-          // Log user activity
           await api.appLogs.logUserInApp();
         } else {
-          // User not authenticated - this is fine, continue with anonymous session
           setUser(null);
           setIsAuthenticated(false);
           setAuthError(null);
-          setAppPublicSettings({ id: 'supabase', public_settings: {} });
+          setAppPublicSettings({ id: isSupabaseConfigured ? 'supabase' : 'local', public_settings: {} });
         }
       } catch (authError) {
-        // User is not authenticated - this is normal for anonymous usage
-        console.log('User not authenticated - continuing with anonymous session');
         setUser(null);
         setIsAuthenticated(false);
         setAuthError(null);
-        setAppPublicSettings({ id: 'supabase', public_settings: {} });
+        setAppPublicSettings({ id: isSupabaseConfigured ? 'supabase' : 'local', public_settings: {} });
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -64,43 +63,38 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    console.log('AuthProvider: Starting checkAppState...');
     checkAppState();
     
-    // Set up auth state listener
-    const { data: { subscription } } = api.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('AuthProvider: Auth state changed:', event);
-        
-        // Ignore INITIAL_SESSION event to prevent re-initialization loop
-        if (event === 'INITIAL_SESSION') {
-          console.log('AuthProvider: Ignoring INITIAL_SESSION event');
-          return;
-        }
-        
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          try {
-            const currentUser = await api.auth.me();
-            setUser(currentUser);
-            setIsAuthenticated(true);
-            setAuthError(null);
-          } catch (error) {
-            console.error('Auth state change error:', error);
-            setAuthError({ type: 'unknown', message: error.message || 'Authentication error' });
+    if (isSupabaseConfigured && api.auth.onAuthStateChange) {
+      const { data: { subscription } } = api.auth.onAuthStateChange(
+        async (event, session) => {
+          if (event === 'INITIAL_SESSION') {
+            return;
           }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setIsAuthenticated(false);
-          setAuthError(null);
+          
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            try {
+              const currentUser = await api.auth.me();
+              setUser(currentUser);
+              setIsAuthenticated(true);
+              setAuthError(null);
+            } catch (error) {
+              console.error('Auth state change error:', error);
+              setAuthError({ type: 'unknown', message: error.message || 'Authentication error' });
+            }
+          } else if (event === 'SIGNED_OUT') {
+            setUser(null);
+            setIsAuthenticated(false);
+            setAuthError(null);
+          }
+          setIsLoadingAuth(false);
         }
-        setIsLoadingAuth(false);
-      }
-    );
+      );
 
-    return () => {
-      console.log('AuthProvider: Cleaning up subscription...');
-      subscription.unsubscribe();
-    };
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
   }, []);
 
   const signIn = async (email, password) => {
@@ -168,8 +162,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const navigateToLogin = () => {
-    // Don't use window.location.href as it causes full page reload
-    // Instead, component will handle the navigation
     console.log('navigateToLogin called - component should handle navigation');
   };
 
