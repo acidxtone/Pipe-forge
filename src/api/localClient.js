@@ -16,7 +16,7 @@ let studyGuidesCache = null;
 async function loadQuestions() {
   if (questionsCache) return questionsCache;
   try {
-    const res = await fetch('/data/questions.json');
+    const res = await fetch('/data/questions-massive-comprehensive.json');
     if (res.ok) {
       const data = await res.json();
       questionsCache = Array.isArray(data) ? data : data.questions || [];
@@ -32,7 +32,7 @@ async function loadQuestions() {
 async function loadStudyGuides() {
   if (studyGuidesCache) return studyGuidesCache;
   try {
-    const res = await fetch('/data/study-guides.json');
+    const res = await fetch('/data/study-guides-massive-comprehensive.json');
     if (res.ok) {
       const data = await res.json();
       studyGuidesCache = Array.isArray(data) ? data : data.guides || [];
