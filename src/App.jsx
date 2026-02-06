@@ -7,6 +7,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from '@/lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import Dashboard from '@/pages/Dashboard';
 import LandingPage from '@/pages/LandingPage';
 import AuthPage from '@/pages/AuthPage';
@@ -40,6 +41,7 @@ const AuthenticatedApp = () => {
 
   return (
     <Routes>
+      <Route path="/auth" element={<Navigate to="/" replace />} />
       <Route path="/" element={
         <LayoutWrapper currentPageName="Dashboard">
           <Dashboard />
