@@ -1,199 +1,194 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { api } from '@/api/supabaseClient';
+import { createPageUrl } from '@/utils';
+import { anonymousSession } from './AnonymousSession';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(false);
+  const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
-  const [session, setSession] = useState(null);
+  const [appPublicSettings, setAppPublicSettings] = useState(null);
+  const [anonymousSessionData, setAnonymousSessionData] = useState(null);
 
-  const fetchUser = useCallback(async () => {
-    try {
-      setIsLoadingAuth(true);
-      const userData = await api.auth.getUser();
+  console.log('AuthProvider: Initializing...');
 
-      if (!userData) {
-        setUser(null);
-        setIsAuthenticated(false);
-        setSession(null);
-        setAuthError(null);
-        return null;
-      }
-
-      // Get user profile data
-      let profileData = {};
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userData.id)
-          .single();
-        
-        if (profile) {
-          profileData = profile;
-        }
-      } catch (profileError) {
-        console.warn('Profile fetch failed:', profileError);
-      }
-
-      const userObj = {
-        id: userData.id,
-        email: userData.email,
-        full_name: profileData.full_name || userData.user_metadata?.full_name || userData.email,
-        first_name: profileData.first_name || userData.user_metadata?.first_name,
-        last_name: profileData.last_name || userData.user_metadata?.last_name,
-        profile_image_url: userData.user_metadata?.avatar_url,
-        selected_year: profileData.selected_year || 1,
-        security_question: profileData.security_question,
-        role: 'user',
-      };
-
-      setUser(userObj);
-      setIsAuthenticated(true);
-      setSession(userData);
-      setAuthError(null);
-      return userObj;
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      setUser(null);
-      setIsAuthenticated(false);
-      setSession(null);
-      setAuthError(null);
-      return null;
-    } finally {
-      setIsLoadingAuth(false);
-    }
+  // Initialize anonymous session on mount
+  useEffect(() => {
+    const session = anonymousSession.init();
+    setAnonymousSessionData(session);
+    console.log('Anonymous session initialized:', session.id);
   }, []);
 
-  useEffect(() => {
-    // Initial auth check
-    fetchUser();
-
-    // Listen for auth changes
-    const { data: { subscription } } = api.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
+  const checkAppState = async () => {
+    try {
+      setIsLoadingPublicSettings(true);
+      setIsLoadingAuth(true);
+      setAuthError(null);
       
-      if (event === 'SIGNED_IN' && session) {
-        await fetchUser();
-      } else if (event === 'SIGNED_OUT') {
+      // Check if user is authenticated (optional - app works without auth)
+      try {
+        const currentUser = await api.auth.me();
+        if (currentUser) {
+          setUser(currentUser);
+          setIsAuthenticated(true);
+          setAppPublicSettings({ id: 'supabase', public_settings: {} });
+          
+          // Log user activity
+          await api.appLogs.logUserInApp();
+        } else {
+          // User not authenticated - this is fine, continue with anonymous session
+          setUser(null);
+          setIsAuthenticated(false);
+          setAuthError(null);
+          setAppPublicSettings({ id: 'supabase', public_settings: {} });
+        }
+      } catch (authError) {
+        // User is not authenticated - this is normal for anonymous usage
+        console.log('User not authenticated - continuing with anonymous session');
         setUser(null);
         setIsAuthenticated(false);
-        setSession(null);
         setAuthError(null);
-      } else if (event === 'TOKEN_REFRESHED') {
-        setSession(session);
+        setAppPublicSettings({ id: 'supabase', public_settings: {} });
       }
-    });
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      setAuthError({ type: 'unknown', message: error.message || 'An unexpected error occurred' });
+    } finally {
+      setIsLoadingPublicSettings(false);
+      setIsLoadingAuth(false);
+    }
+  };
 
-    return () => subscription.unsubscribe();
-  }, [fetchUser]);
+  useEffect(() => {
+    console.log('AuthProvider: Starting checkAppState...');
+    checkAppState();
+    
+    // Set up auth state listener
+    const { data: { subscription } } = api.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('AuthProvider: Auth state changed:', event);
+        
+        // Ignore INITIAL_SESSION event to prevent re-initialization loop
+        if (event === 'INITIAL_SESSION') {
+          console.log('AuthProvider: Ignoring INITIAL_SESSION event');
+          return;
+        }
+        
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          try {
+            const currentUser = await api.auth.me();
+            setUser(currentUser);
+            setIsAuthenticated(true);
+            setAuthError(null);
+          } catch (error) {
+            console.error('Auth state change error:', error);
+            setAuthError({ type: 'unknown', message: error.message || 'Authentication error' });
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setIsAuthenticated(false);
+          setAuthError(null);
+        }
+        setIsLoadingAuth(false);
+      }
+    );
 
-  const signIn = useCallback(async (email, password) => {
+    return () => {
+      console.log('AuthProvider: Cleaning up subscription...');
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const signIn = async (email, password) => {
     try {
       setAuthError(null);
       const result = await api.auth.signIn(email, password);
       
-      if (result.session) {
-        await fetchUser();
-        return { success: true, user: result.user };
+      if (result.user) {
+        const currentUser = await api.auth.me();
+        setUser(currentUser);
+        setIsAuthenticated(true);
+        return { success: true };
       } else {
-        throw new Error('Sign in failed');
+        setAuthError({ type: 'auth_failed', message: result.error || 'Sign in failed' });
+        return { success: false, message: result.error || 'Sign in failed' };
       }
     } catch (error) {
-      console.error('Sign in error:', error);
-      setAuthError({ type: 'signin', message: error.message });
-      return { success: false, error: error.message };
+      const message = error.message || 'Sign in failed';
+      setAuthError({ type: 'auth_failed', message });
+      return { success: false, message };
     }
-  }, [fetchUser]);
+  };
 
-  const signUp = useCallback(async (email, password, userData = {}) => {
+  const signInWithMagicLink = async (email) => {
     try {
       setAuthError(null);
-      const result = await api.auth.signUp(email, password, userData);
+      const result = await api.auth.signInWithMagicLink(email);
       
-      if (result.needsVerification) {
-        return { success: true, needsVerification: true };
-      } else if (result.session) {
-        await fetchUser();
-        return { success: true, user: result.user };
+      return { 
+        success: true, 
+        message: 'Magic link sent! Check your email to continue.' 
+      };
+    } catch (error) {
+      const message = error.message || 'Failed to send magic link';
+      setAuthError({ type: 'auth_failed', message });
+      return { success: false, message };
+    }
+  };
+
+  const signUp = async (email, password, fullName) => {
+    try {
+      setAuthError(null);
+      const result = await api.auth.signUp(email, password, fullName);
+      
+      if (result.user) {
+        return { success: true, message: 'Account created! You can now sign in.' };
       } else {
-        throw new Error('Sign up failed');
+        setAuthError({ type: 'signup_failed', message: result.error || 'Sign up failed' });
+        return { success: false, message: result.error || 'Sign up failed' };
       }
     } catch (error) {
-      console.error('Sign up error:', error);
-      setAuthError({ type: 'signup', message: error.message });
-      return { success: false, error: error.message };
+      const message = error.message || 'Sign up failed';
+      setAuthError({ type: 'signup_failed', message });
+      return { success: false, message };
     }
-  }, [fetchUser]);
+  };
 
-  const signOut = useCallback(async () => {
-    try {
-      await api.auth.signOut();
-      setUser(null);
-      setIsAuthenticated(false);
-      setSession(null);
-      setAuthError(null);
-      return { success: true };
-    } catch (error) {
-      console.error('Sign out error:', error);
-      return { success: false, error: error.message };
+  const logout = (shouldRedirect = true) => {
+    setUser(null);
+    setIsAuthenticated(false);
+    api.auth.logout();
+    if (shouldRedirect) {
+      window.location.reload();
     }
-  }, []);
+  };
 
-  const updateProfile = useCallback(async (updates) => {
-    try {
-      const updatedProfile = await api.auth.updateMe(updates);
-      
-      // Update local user state
-      setUser(prev => ({
-        ...prev,
-        ...updatedProfile
-      }));
-      
-      return { success: true, profile: updatedProfile };
-    } catch (error) {
-      console.error('Update profile error:', error);
-      setAuthError({ type: 'profile', message: error.message });
-      return { success: false, error: error.message };
-    }
-  }, []);
-
-  const resetPassword = useCallback(async (email, securityAnswer, newPassword) => {
-    try {
-      setAuthError(null);
-      await api.auth.resetPassword(email, securityAnswer, newPassword);
-      return { success: true };
-    } catch (error) {
-      console.error('Reset password error:', error);
-      setAuthError({ type: 'reset', message: error.message });
-      return { success: false, error: error.message };
-    }
-  }, []);
-
-  const clearError = useCallback(() => {
-    setAuthError(null);
-  }, []);
-
-  const value = {
-    user,
-    session,
-    isAuthenticated,
-    isLoadingAuth,
-    authError,
-    signIn,
-    signUp,
-    signOut,
-    updateProfile,
-    resetPassword,
-    clearError,
-    fetchUser
+  const navigateToLogin = () => {
+    // Don't use window.location.href as it causes full page reload
+    // Instead, component will handle the navigation
+    console.log('navigateToLogin called - component should handle navigation');
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated,
+      isLoadingAuth,
+      isLoadingPublicSettings,
+      authError,
+      appPublicSettings,
+      anonymousSessionData,
+      logout,
+      navigateToLogin,
+      checkAppState,
+      signIn,
+      signInWithMagicLink,
+      signUp
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-import { useAuth } from '@/lib/AuthContext';
-import { api } from '@/api/localClient';
+import React, { useState, useEffect } from 'react';
+import { api } from '@/api/supabaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -27,28 +26,32 @@ import { useNavigate } from 'react-router-dom';
 export default function Settings() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { user, updateMe } = useAuth();
+  const [user, setUser] = useState(null);
   const [showChangeYear, setShowChangeYear] = useState(false);
   const [selectedNewYear, setSelectedNewYear] = useState(null);
 
+  useEffect(() => {
+    api.auth.me().then(setUser).catch(() => {});
+  }, []);
+
   const { data: progress } = useQuery({
-    queryKey: ['userProgress', user?.selected_year],
+    queryKey: ['userProgress'],
     queryFn: async () => {
-      const results = await api.entities.UserProgress.filter({ created_by: user?.email, year: user?.selected_year });
+      const results = await api.entities.UserProgress.filter({ created_by: user?.email });
       return results[0] || null;
     },
-    enabled: !!user?.email && !!user?.selected_year
+    enabled: !!user?.email
   });
 
   const resetProgressMutation = useMutation({
     mutationFn: async () => {
       if (progress?.id) {
-        await api.entities.UserProgress.delete(progress.id, user?.selected_year);
+        await api.entities.UserProgress.delete(progress.id);
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['userProgress', user?.selected_year]);
-      toast.success('Progress reset successfully for Year ' + user?.selected_year);
+      queryClient.invalidateQueries(['userProgress']);
+      toast.success('Progress reset successfully');
     }
   });
 
@@ -56,13 +59,12 @@ export default function Settings() {
     mutationFn: async () => {
       if (progress?.id) {
         await api.entities.UserProgress.update(progress.id, {
-          bookmarked_questions: [],
-          _year: user?.selected_year
+          bookmarked_questions: []
         });
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['userProgress', user?.selected_year]);
+      queryClient.invalidateQueries(['userProgress']);
       toast.success('Bookmarks cleared');
     }
   });
@@ -71,27 +73,28 @@ export default function Settings() {
     mutationFn: async () => {
       if (progress?.id) {
         await api.entities.UserProgress.update(progress.id, {
-          weak_questions: [],
-          _year: user?.selected_year
+          weak_questions: []
         });
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['userProgress', user?.selected_year]);
+      queryClient.invalidateQueries(['userProgress']);
       toast.success('Weak areas cleared');
     }
   });
 
   const changeYearMutation = useMutation({
     mutationFn: async (newYear) => {
-      await updateMe({ selected_year: newYear });
+      if (progress?.id) {
+        await api.entities.UserProgress.delete(progress.id);
+      }
+      await api.auth.updateMe({ selected_year: newYear });
     },
-    onSuccess: (_, newYear) => {
-      queryClient.invalidateQueries({ queryKey: ['userProgress'] });
-      queryClient.invalidateQueries({ queryKey: ['questions'] });
+    onSuccess: () => {
+      queryClient.invalidateQueries(['userProgress']);
       setShowChangeYear(false);
       setSelectedNewYear(null);
-      toast.success('Switched to Year ' + newYear + '. Your progress for each year is saved separately.');
+      toast.success('Year changed successfully');
       navigate(createPageUrl('Dashboard'));
     }
   });
@@ -315,7 +318,7 @@ export default function Settings() {
           <AlertDialogHeader>
             <AlertDialogTitle>Change Study Year</AlertDialogTitle>
             <AlertDialogDescription>
-              Your progress is tracked separately for each year. Switching years will load your saved progress for the new year (or start fresh if you haven't studied that year yet). Your current year's progress will be preserved.
+              Changing your study year will reset and clear all progress, logs, weak-area data, and exam results for your current year. This is done for accuracy and storage efficiency. Your account will remain active.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="grid grid-cols-2 gap-3 py-4">

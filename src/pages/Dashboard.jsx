@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
-import { useAuth } from '@/lib/AuthContext';
-import { api } from '@/api/localClient';
+import React, { useState, useEffect } from 'react';
+import { api } from '@/api/supabaseClient';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -8,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
+  GraduationCap, 
   Target, 
   Zap, 
   Calculator, 
@@ -20,25 +20,30 @@ import {
   FileText
 } from "lucide-react";
 import { motion } from "framer-motion";
+import YearIndicator from '@/components/YearIndicator';
+import YearHeader from '@/components/YearHeader';
 import { BannerAd } from '@/components/ads/AdSense';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user && !user.selected_year) {
-      navigate(createPageUrl('YearSelection'));
-    }
-  }, [user, navigate]);
+    api.auth.me().then(user => {
+      setUser(user);
+      if (!user.selected_year) {
+        navigate(createPageUrl('YearSelection'));
+      }
+    }).catch(() => {});
+  }, [navigate]);
 
   const { data: progress } = useQuery({
-    queryKey: ['userProgress', user?.selected_year],
+    queryKey: ['userProgress'],
     queryFn: async () => {
-      const results = await api.entities.UserProgress.filter({ created_by: user?.email, year: user?.selected_year });
+      const results = await api.entities.UserProgress.filter({ created_by: user?.email });
       return results[0] || null;
     },
-    enabled: !!user?.email && !!user?.selected_year
+    enabled: !!user?.email
   });
 
   const { data: questions = [] } = useQuery({
@@ -53,15 +58,23 @@ export default function Dashboard() {
 
   const quizModes = [
     {
-      mode: 'full_exam',
-      title: 'Full Exam Simulation',
-      description: 'Complete 100-question exam under real conditions (3 hours)',
-      icon: FileText,
-      color: 'bg-slate-600',
-      badge: '100 Q'
+      mode: 'practice',
+      title: 'Practice Mode',
+      description: 'Answer questions with immediate feedback',
+      icon: Target,
+      color: 'bg-blue-500',
+      badge: progress?.total_questions_answered || 0
     },
     {
-      mode: 'section_focus',
+      mode: 'timed',
+      title: 'Timed Quiz',
+      description: 'Simulate exam conditions',
+      icon: Clock,
+      color: 'bg-red-500',
+      badge: progress?.quizzes_completed || 0
+    },
+    {
+      mode: 'section_practice',
       title: 'Section Practice',
       description: 'Practice specific sections to strengthen weak areas',
       icon: Target,
@@ -93,6 +106,14 @@ export default function Dashboard() {
       badge: progress?.weak_questions?.length || 0
     },
     {
+      mode: 'exam_simulation',
+      title: 'Full Exam Simulation',
+      description: 'Complete 100-question exam under real conditions',
+      icon: FileText,
+      color: 'bg-slate-600',
+      badge: '100 Q'
+    },
+    {
       mode: 'bookmarked',
       title: 'Bookmarked Questions',
       description: 'Practice questions you\'ve saved for review',
@@ -120,6 +141,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+      <YearHeader />
       <BannerAd position="top" />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -137,7 +159,7 @@ export default function Dashboard() {
             className="text-center"
           >
             <h1 className="text-4xl font-bold text-slate-900 mb-4">
-              Welcome back, {user?.full_name || user?.first_name || user?.email?.split('@')[0]}!
+              Welcome back, {user?.email?.split('@')[0]}!
             </h1>
             <p className="text-lg text-slate-600">
               Ready to continue your Steamfitter/Pipefitter journey?

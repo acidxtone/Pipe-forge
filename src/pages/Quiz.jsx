@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/lib/AuthContext';
-import { api } from '@/api/localClient';
+import { api } from '@/api/supabaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -36,7 +35,7 @@ export default function Quiz() {
   const difficulty = urlParams.get('difficulty') || 'mixed';
   const showExplanationsMode = urlParams.get('explanations') || 'immediate';
 
-  const { user } = useAuth();
+  const [user, setUser] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [showExplanation, setShowExplanation] = useState(false);
@@ -48,6 +47,10 @@ export default function Quiz() {
   const [bookmarkedQuestions, setBookmarkedQuestions] = useState([]);
   const [quizQuestions, setQuizQuestions] = useState([]);
 
+  useEffect(() => {
+    api.auth.me().then(setUser).catch(() => {});
+  }, []);
+
   const { data: allQuestions = [], isLoading } = useQuery({
     queryKey: ['questions', user?.selected_year],
     queryFn: () => api.entities.Question.filter({ year: user?.selected_year || 1 }),
@@ -55,12 +58,12 @@ export default function Quiz() {
   });
 
   const { data: progress } = useQuery({
-    queryKey: ['userProgress', user?.selected_year],
+    queryKey: ['userProgress'],
     queryFn: async () => {
-      const results = await api.entities.UserProgress.filter({ created_by: user?.email, year: user?.selected_year });
+      const results = await api.entities.UserProgress.filter({ created_by: user?.email });
       return results[0] || null;
     },
-    enabled: !!user?.email && !!user?.selected_year
+    enabled: !!user?.email
   });
 
   // Select questions based on mode
@@ -169,15 +172,14 @@ export default function Quiz() {
         last_study_date: today
       };
 
-      const year = user?.selected_year;
       if (existing?.id) {
-        await api.entities.UserProgress.update(existing.id, { ...progressData, _year: year });
+        await api.entities.UserProgress.update(existing.id, progressData);
       } else {
-        await api.entities.UserProgress.create({ ...progressData, year });
+        await api.entities.UserProgress.create(progressData);
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['userProgress', user?.selected_year]);
+      queryClient.invalidateQueries(['userProgress']);
     }
   });
 
