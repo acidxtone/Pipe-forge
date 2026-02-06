@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import YearIndicator from '@/components/YearIndicator';
-import YearHeader from '@/components/YearHeader';
 import { BannerAd, InContentAd } from '@/components/ads/AdSense';
 
 export default function Study() {
@@ -105,7 +104,6 @@ export default function Study() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-      <YearHeader />
       <BannerAd position="top" />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

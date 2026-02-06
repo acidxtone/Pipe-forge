@@ -11,10 +11,21 @@ import { Navigate } from 'react-router-dom';
 import Dashboard from '@/pages/Dashboard';
 import LandingPage from '@/pages/LandingPage';
 import AuthPage from '@/pages/AuthPage';
+import YearHeader from '@/components/YearHeader';
 
 const { Pages } = pagesConfig;
 
-const LayoutWrapper = ({ children, currentPageName }) => <>{children}</>;
+const PAGES_WITHOUT_YEAR_HEADER = ['YearSelection'];
+
+const LayoutWrapper = ({ children, currentPageName }) => {
+  const showYearHeader = !PAGES_WITHOUT_YEAR_HEADER.includes(currentPageName);
+  return (
+    <>
+      {showYearHeader && <YearHeader />}
+      {children}
+    </>
+  );
+};
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isAuthenticated } = useAuth();

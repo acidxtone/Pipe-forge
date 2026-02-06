@@ -196,6 +196,38 @@ router.get("/api/auth/user", async (req, res) => {
   }
 });
 
+router.patch("/api/auth/user", async (req, res) => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const { selectedYear } = req.body;
+    const updateData: Record<string, any> = { updatedAt: new Date() };
+
+    if (selectedYear !== undefined) {
+      updateData.selectedYear = selectedYear;
+    }
+
+    const [updatedUser] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning();
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const { passwordHash: _, securityAnswer: _sa, ...safeUser } = updatedUser;
+    res.json(safeUser);
+  } catch (error) {
+    console.error("Update user error:", error);
+    res.status(500).json({ message: "Failed to update user" });
+  }
+});
+
 router.post("/api/auth/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) {

@@ -2,10 +2,6 @@ import React, { createContext, useState, useContext, useEffect, useCallback } fr
 
 const AuthContext = createContext();
 
-const STORAGE_KEYS = {
-  selectedYear: 'tradebench_selected_year',
-};
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -21,7 +17,7 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         setIsAuthenticated(false);
         setAuthError(null);
-        return;
+        return null;
       }
 
       if (!response.ok) {
@@ -29,25 +25,28 @@ export const AuthProvider = ({ children }) => {
       }
 
       const userData = await response.json();
-      const selectedYear = parseInt(localStorage.getItem(STORAGE_KEYS.selectedYear), 10);
 
-      setUser({
+      const userObj = {
         id: userData.id,
         email: userData.email,
         full_name: userData.fullName || [userData.firstName, userData.lastName].filter(Boolean).join(' ') || userData.email,
         first_name: userData.firstName,
         last_name: userData.lastName,
         profile_image_url: userData.profileImageUrl,
-        selected_year: Number.isFinite(selectedYear) ? selectedYear : null,
+        selected_year: userData.selectedYear || null,
         role: 'user',
-      });
+      };
+
+      setUser(userObj);
       setIsAuthenticated(true);
       setAuthError(null);
+      return userObj;
     } catch (error) {
       console.error('Auth check failed:', error);
       setUser(null);
       setIsAuthenticated(false);
       setAuthError(null);
+      return null;
     } finally {
       setIsLoadingAuth(false);
     }
@@ -74,8 +73,8 @@ export const AuthProvider = ({ children }) => {
         return { success: false, message: data.message };
       }
 
-      await fetchUser();
-      return { success: true };
+      const userObj = await fetchUser();
+      return { success: true, user: userObj };
     } catch (error) {
       const message = error.message || 'Sign in failed';
       setAuthError({ type: 'auth_failed', message });
@@ -100,8 +99,8 @@ export const AuthProvider = ({ children }) => {
         return { success: false, message: data.message };
       }
 
-      await fetchUser();
-      return { success: true };
+      const userObj = await fetchUser();
+      return { success: true, user: userObj };
     } catch (error) {
       const message = error.message || 'Sign up failed';
       setAuthError({ type: 'signup_failed', message });
@@ -111,10 +110,26 @@ export const AuthProvider = ({ children }) => {
 
   const updateMe = async (data) => {
     try {
-      if (data.selected_year != null) {
-        localStorage.setItem(STORAGE_KEYS.selectedYear, String(data.selected_year));
+      const response = await fetch('/api/auth/user', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          selectedYear: data.selected_year,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update user');
       }
-      setUser(prev => prev ? { ...prev, ...data } : prev);
+
+      const userData = await response.json();
+
+      setUser(prev => prev ? {
+        ...prev,
+        selected_year: userData.selectedYear || prev.selected_year,
+      } : prev);
+
       return { success: true };
     } catch (error) {
       return { success: false, message: error.message };
@@ -127,7 +142,6 @@ export const AuthProvider = ({ children }) => {
     } catch (_) {}
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem(STORAGE_KEYS.selectedYear);
   };
 
   const navigateToLogin = () => {};

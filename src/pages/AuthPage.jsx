@@ -3,7 +3,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, ArrowLeft, Eye, EyeOff, Loader2, ChevronDown } from "lucide-react";
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
 
 const SECURITY_QUESTIONS = [
   "What was the name of your first pet?",
@@ -18,6 +19,7 @@ const SECURITY_QUESTIONS = [
 
 export default function AuthPage() {
   const { signIn, signUp } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,13 +40,25 @@ export default function AuthPage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [resetStep, setResetStep] = useState(1);
 
+  const navigateAfterAuth = (authUser) => {
+    if (authUser?.selected_year) {
+      navigate(createPageUrl('Dashboard'));
+    } else {
+      navigate(createPageUrl('YearSelection'));
+    }
+  };
+
   const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
     try {
       const result = await signIn(email, password);
-      if (!result.success) setError(result.message);
+      if (!result.success) {
+        setError(result.message);
+      } else {
+        navigateAfterAuth(result.user);
+      }
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -61,7 +75,11 @@ export default function AuthPage() {
       if (!securityQuestion) { setError('Please select a security question'); setIsSubmitting(false); return; }
       if (!securityAnswer.trim()) { setError('Please enter your security answer'); setIsSubmitting(false); return; }
       const result = await signUp(email, password, fullName, securityQuestion, securityAnswer);
-      if (!result.success) setError(result.message);
+      if (!result.success) {
+        setError(result.message);
+      } else {
+        navigateAfterAuth(result.user);
+      }
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {

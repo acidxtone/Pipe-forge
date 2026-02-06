@@ -53,6 +53,7 @@ scripts/         - Data generation and migration scripts
 - `POST /api/auth/register` - Create account with email, password, full name
 - `POST /api/auth/login` - Sign in with email and password
 - `GET /api/auth/user` - Get current authenticated user
+- `PATCH /api/auth/user` - Update user profile (e.g. selectedYear)
 - `POST /api/auth/logout` - End session
 - `POST /api/auth/forgot-password/verify-email` - Step 1: verify email exists, returns security question
 - `POST /api/auth/forgot-password/verify-answer` - Step 2: verify security answer, returns reset token
@@ -62,12 +63,23 @@ scripts/         - Data generation and migration scripts
 - Security answers hashed with bcrypt (case-insensitive comparison)
 - Secure HTTP-only cookies with 7-day expiry
 
+## Year Selection Flow
+- First-time login (no selected_year in DB) → redirected to /YearSelection
+- Returning login (selected_year exists in DB) → goes straight to Dashboard
+- selected_year is stored server-side in the users table (persists across devices/sessions)
+- YearHeader component shown at top of ALL authenticated pages (except YearSelection)
+- YearHeader shows current year with a "Change" button linking to /YearSelection
+- App.jsx LayoutWrapper automatically adds YearHeader to all routes
+
 ## Running
 - `npm run dev` - Start Express + Vite dev server on port 5000
 - `npm run build` - Build frontend for production
 - `npm run db:push` - Push Drizzle schema to database
 
 ## Recent Changes
+- 2026-02-06: Added server-side year persistence (selected_year column in users table, PATCH /api/auth/user endpoint)
+- 2026-02-06: Moved YearHeader to App.jsx LayoutWrapper for consistent display on all authenticated pages
+- 2026-02-06: AuthPage now routes to YearSelection (first-time) or Dashboard (returning) after login/signup
 - 2026-02-06: Added forgot password flow with security questions (3-step: email → answer → new password)
 - 2026-02-06: Added security_question and security_answer columns to users table
 - 2026-02-06: Replaced Replit Auth with custom email/password authentication (bcrypt + sessions)
